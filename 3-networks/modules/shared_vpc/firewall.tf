@@ -19,7 +19,7 @@
  *****************************************/
 
 resource "google_compute_firewall" "deny_all_egress" {
-  name      = "fw-${var.environment_code}-shared-base-65535-e-d-all-all-all"
+  name      = "fw-${var.environment_code}-shared-${var.type}-65535-e-d-all-all-all"
   network   = module.main.network_name
   project   = var.project_id
   direction = "EGRESS"
@@ -42,9 +42,8 @@ resource "google_compute_firewall" "deny_all_egress" {
   destination_ranges = ["0.0.0.0/0"]
 }
 
-
-resource "google_compute_firewall" "allow_private_api_egress" {
-  name      = "fw-${var.environment_code}-shared-base-65534-e-a-allow-google-apis-all-tcp-443"
+resource "google_compute_firewall" "allow_api_egress" {
+  name      = "fw-${var.environment_code}-shared-${var.type}-65534-e-a-allow-google-apis-all-tcp-443"
   network   = module.main.network_name
   project   = var.project_id
   direction = "EGRESS"
@@ -65,7 +64,7 @@ resource "google_compute_firewall" "allow_private_api_egress" {
     ports    = ["443"]
   }
 
-  destination_ranges = [local.private_googleapis_cidr]
+  destination_ranges = [local.googleapis_cidr]
 
   target_tags = ["allow-google-apis"]
 }

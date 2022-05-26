@@ -44,16 +44,6 @@ output "subnets_regions" {
   description = "The region where the subnets will be created"
 }
 
-output "subnets_private_access" {
-  value       = module.main.subnets_private_access
-  description = "Whether the subnets have access to Google API's without a public IP"
-}
-
-output "subnets_flow_logs" {
-  value       = module.main.subnets_flow_logs
-  description = "Whether the subnets have VPC flow logs enabled"
-}
-
 output "subnets_secondary_ranges" {
   value       = module.main.subnets_secondary_ranges
   description = "The secondary ranges associated with these subnets"

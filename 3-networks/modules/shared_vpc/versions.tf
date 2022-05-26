@@ -14,18 +14,27 @@
  * limitations under the License.
  */
 
-/******************************************
-  Ranges for default firewall rules.
- *****************************************/
+terraform {
+  required_version = ">= 0.13"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = ">= 3.50"
+    }
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = ">= 3.50"
+    }
+    random = {
+      source = "hashicorp/random"
+    }
+  }
 
-data "google_netblock_ip_ranges" "legacy_health_checkers" {
-  range_type = "legacy-health-checkers"
-}
+  provider_meta "google" {
+    module_name = "blueprints/terraform/terraform-example-foundation:${type}_shared_vpc/v2.3.1"
+  }
 
-data "google_netblock_ip_ranges" "health_checkers" {
-  range_type = "health-checkers"
-}
-
-data "google_netblock_ip_ranges" "iap_forwarders" {
-  range_type = "iap-forwarders"
+  provider_meta "google-beta" {
+    module_name = "blueprints/terraform/terraform-example-foundation:${type}_shared_vpc/v2.3.1"
+  }
 }

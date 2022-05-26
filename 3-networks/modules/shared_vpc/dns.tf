@@ -15,7 +15,20 @@
  */
 
 locals {
-  parent_id = var.parent_folder != "" ? "folders/${var.parent_folder}" : "organizations/${var.org_id}"
+  parent_id   = var.parent_folder != "" ? "folders/${var.parent_folder}" : "organizations/${var.org_id}"
+  policy_name = local.restricted ? "default-policy" : "dp-${var.environment_code}-shared-base-default-policy"
+
+  google_restricted_ips = ["199.36.153.4", "199.36.153.5", "199.36.153.6", "199.36.153.7"]
+  google_private_ips = ["199.36.153.4", "199.36.153.5", "199.36.153.6", "199.36.153.7"]
+  google_dns_ips = local.restricted ? local.google_restricted_ips: local.google_private_ips
+
+  gcr_restricted_ips = ["199.36.153.4", "199.36.153.5", "199.36.153.6", "199.36.153.7"]
+  gcr_private_ips = ["199.36.153.8", "199.36.153.9", "199.36.153.10", "199.36.153.11"]
+  gcr_dns_ips = local.restricted ? local.gcr_restricted_ips : local.gcr_private_ips
+
+  pkg_restricted_ips = ["199.36.153.4", "199.36.153.5", "199.36.153.6", "199.36.153.7"]
+  pkg_private_ips = ["199.36.153.8", "199.36.153.9", "199.36.153.10", "199.36.153.11"]
+  pkg_dns_ips = local.restricted ? local.pkg_restricted_ips : local.pkg_private_ips
 }
 
 data "google_active_folder" "common" {
@@ -42,7 +55,7 @@ data "google_compute_network" "vpc_dns_hub" {
 
 resource "google_dns_policy" "default_policy" {
   project                   = var.project_id
-  name                      = "dp-${var.environment_code}-shared-base-default-policy"
+  name                      = local.policy_name
   enable_inbound_forwarding = var.dns_enable_inbound_forwarding
   enable_logging            = var.dns_enable_logging
   networks {
@@ -51,17 +64,17 @@ resource "google_dns_policy" "default_policy" {
 }
 
 /******************************************
-  Private Google APIs DNS Zone & records.
+  Google APIs DNS Zone & records.
  *****************************************/
 
-module "private_googleapis" {
+module "googleapis" {
   source      = "terraform-google-modules/cloud-dns/google"
   version     = "~> 4.0"
   project_id  = var.project_id
   type        = "private"
-  name        = "dz-${var.environment_code}-shared-base-apis"
+  name        = "dz-${var.environment_code}-shared-${var.type}-apis"
   domain      = "googleapis.com."
-  description = "Private DNS zone to configure private.googleapis.com"
+  description = "Private DNS zone to configure ${var.type}.googleapis.com"
 
   private_visibility_config_networks = [
     module.main.network_self_link
@@ -72,27 +85,27 @@ module "private_googleapis" {
       name    = "*"
       type    = "CNAME"
       ttl     = 300
-      records = ["private.googleapis.com."]
+      records = ["${local.api_domain}.googleapis.com."]
     },
     {
-      name    = "private"
+      name    = "${local.api_domain}"
       type    = "A"
       ttl     = 300
-      records = ["199.36.153.8", "199.36.153.9", "199.36.153.10", "199.36.153.11"]
+      records = local.google_dns_ips
     },
   ]
 }
 
 /******************************************
-  Private GCR DNS Zone & records.
+  GCR DNS Zone & records.
  *****************************************/
 
-module "base_gcr" {
+module "gcr" {
   source      = "terraform-google-modules/cloud-dns/google"
   version     = "~> 3.1"
   project_id  = var.project_id
   type        = "private"
-  name        = "dz-${var.environment_code}-shared-base-gcr"
+  name        = "dz-${var.environment_code}-shared-${var.type}-gcr"
   domain      = "gcr.io."
   description = "Private DNS zone to configure gcr.io"
 
@@ -111,21 +124,21 @@ module "base_gcr" {
       name    = ""
       type    = "A"
       ttl     = 300
-      records = ["199.36.153.8", "199.36.153.9", "199.36.153.10", "199.36.153.11"]
+      records = local.gcr_dns_ips
     },
   ]
 }
 
 /***********************************************
-  Private Artifact Registry DNS Zone & records.
+  Artifact Registry DNS Zone & records.
  ***********************************************/
 
-module "base_pkg_dev" {
+module "pkg_dev" {
   source      = "terraform-google-modules/cloud-dns/google"
   version     = "~> 3.1"
   project_id  = var.project_id
   type        = "private"
-  name        = "dz-${var.environment_code}-shared-base-pkg-dev"
+  name        = "dz-${var.environment_code}-shared-${var.type}-pkg-dev"
   domain      = "pkg.dev."
   description = "Private DNS zone to configure pkg.dev"
 
@@ -144,13 +157,11 @@ module "base_pkg_dev" {
       name    = ""
       type    = "A"
       ttl     = 300
-      records = ["199.36.153.8", "199.36.153.9", "199.36.153.10", "199.36.153.11"]
+      records = local.pkg_dns_ips
     },
   ]
 }
 
-
------ VIVO
 /******************************************
  Creates DNS Peering to DNS HUB
 *****************************************/
@@ -159,7 +170,7 @@ module "peering_zone" {
   version     = "~> 3.1"
   project_id  = var.project_id
   type        = "peering"
-  name        = "dz-${var.environment_code}-shared-base-to-dns-hub"
+  name        = "dz-${var.environment_code}-shared-${var.type}-to-dns-hub"
   domain      = var.domain
   description = "Private DNS peering zone."
 
